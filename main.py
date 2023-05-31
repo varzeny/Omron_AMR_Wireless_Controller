@@ -1,4 +1,3 @@
-from telnetlib import Telnet
 from threading import *
 
 from PyQt5.QtWidgets import *
@@ -6,6 +5,7 @@ from PyQt5.QtGui import *
 from PyQt5 import uic
 
 import time
+import socket
 
 form_class=uic.loadUiType(f"./ui/ui_main.ui")[0]
 
@@ -21,6 +21,11 @@ class MainW(QMainWindow,form_class):
         self.pb_connect.clicked.connect(self.connect)
         self.pb_send.clicked.connect(self.cmd)
 
+        self.pb_dock.clicked.connect(self.pb_func)
+        self.pb_stop.clicked.connect(self.pb_func)
+        self.pb_goal1.clicked.connect(self.pb_func)
+        self.pb_goal2.clicked.connect(self.pb_func)
+
 
 
     def closeEvent(self, evt):
@@ -35,15 +40,14 @@ class MainW(QMainWindow,form_class):
             self.client.close()
             self.client = None
 
-        self.client=Telnet()
-        self.client.open(self.lineEdit_ip.text(),int(self.lineEdit_port.text()))
-        th_read=Thread(target=self.read, args=(self.client, ), daemon=True)
+        self.client=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        self.client.connect((self.lineEdit_ip.text(),int(self.lineEdit_port.text())))
+        th_read=Thread(target=self.read, daemon=True)
         th_read.start()
         
-    def read(self,client):
-        sock=client.get_socket()
-        while sock:
-            data=sock.recv(1024).decode("ascii")
+    def read(self):
+        while True:
+            data=self.client.recv(1024).decode()
             if len(data):
                 self.textBrowser.append(data)
                 self.textBrowser.moveCursor(QTextCursor.End)
@@ -55,8 +59,14 @@ class MainW(QMainWindow,form_class):
         cmd=self.lineEdit_cmd.text()
         self.textBrowser.append(cmd)
         self.textBrowser.moveCursor(QTextCursor.End)
-        self.client.write(cmd.encode("ascii")+b"\n")
+        self.client.send(cmd.encode()+b"\n\r")
         self.lineEdit_cmd.setText("")
+
+    def pb_func(self):
+        pb = self.sender().text()
+        print( pb )
+        self.client.send(pb.encode()+b"\n\r")
+
 
 
 if __name__=="__main__":
